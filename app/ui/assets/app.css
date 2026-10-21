@@ -120,21 +120,21 @@ footer { grid-area: foot; }
 }
 .rpm-rail { grid-column: 2; grid-row: 1; min-width: 0; }
 .rail-track {
-  position: relative; height: 26px; border-radius: 13px;
+  position: relative; height: 28px; border-radius: 8px;
   background: var(--card2); border: 1px solid var(--line);
 }
 .rail-track.draggable { cursor: pointer; touch-action: none; }
 .rail-fill {
   position: absolute; left: 0; bottom: 0;
-  width: 0%; height: 100%; border-radius: 12px;
+  width: 0%; height: 100%; border-radius: 7px;
   background: linear-gradient(90deg, #17a8cc, var(--acc2));
   transition: width .5s ease, height .5s ease;
 }
 .rail-thumb {
-  position: absolute; left: calc(0% - 11px); bottom: 50%;
+  position: absolute; left: calc(0% - 12px); bottom: 50%;
   transform: translateY(50%);
-  width: 22px; height: 22px; border-radius: 50%;
-  background: #fff; border: 3px solid var(--acc2);
+  width: 24px; height: 24px; border-radius: 6px;
+  background: #fff; border: 2px solid var(--acc2);
   box-shadow: 0 1px 6px rgba(13,123,176,.35);
   transition: left .5s ease, opacity .2s; pointer-events: none;
 }
@@ -285,31 +285,44 @@ footer { text-align: center; color: #9fb0bf; font-size: 11px; margin-top: 4px; }
     grid-template-areas:
       "hero" "mode" "temps" "curve" "bark" "foot";
   }
-  .temps { grid-template-columns: 1fr; }
-  .hero { grid-template-columns: 1fr auto; gap: 10px 14px; }
-  .fan-wrap { width: 168px; height: 168px; grid-row: 1; }
+  /* 温度三卡：一行三列紧凑小卡 */
+  .temps { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .temp-card { padding: 10px 6px; }
+  .temp-card .card-title { font-size: 12px; margin-bottom: 6px; }
+  .temp-card .mini { display: none; }
+  .t-val { font-size: 22px; }
+  .t-val .deg { font-size: 12px; }
+  .link-btn { margin-top: 4px; padding: 4px 12px; font-size: 11px; }
+
+  /* hero：风扇左 + 竖转速条右，meta 全宽居中在下 */
+  .hero { grid-template-columns: 1fr auto; gap: 12px 14px; }
+  .fan-wrap { width: clamp(140px, 40vw, 168px); height: clamp(140px, 40vw, 168px); grid-row: 1; }
   .rpm-rail { grid-column: 2; grid-row: 1; justify-self: end; align-self: center; }
   .rail-track {
-    width: 22px; height: clamp(130px, 32vh, 190px);
-    border-radius: 11px; touch-action: none;
+    width: 24px; height: clamp(130px, 30vh, 180px);
+    border-radius: 7px; touch-action: none;
   }
   .rail-track.draggable { cursor: pointer; }
   .rail-fill { width: 100%; }
   .rail-thumb {
     left: 50%; transform: translateX(-50%);
-    width: 22px; height: 22px; border-radius: 50%;
+    width: 24px; height: 24px; border-radius: 6px;
   }
   .rail-label { display: none; }
   .rpm-rail { display: flex; flex-direction: column; align-items: center; gap: 6px; }
   .rail-meta { grid-column: 1 / -1; grid-row: 2; }
   .stat-row { gap: 6px; }
-  .stat { padding: 5px 9px; min-width: 0; }
+  .stat { padding: 6px 8px; min-width: 0; flex: 1; align-items: center; }
   .s-val { font-size: 12.5px; }
   .s-label { font-size: 10px; }
-  #rpm { font-size: 42px; }
+  #rpm { font-size: 40px; }
+  .rpm-line { justify-content: center; }
+
+  /* 表单与曲线 */
   .form-row { flex-wrap: wrap; }
   .form-row label { min-width: 80px; }
   .curve-row input { width: 70px; }
   header { padding: 10px 14px; }
   #curve-canvas { height: 150px; }
+  footer { font-size: 10px; }
 }

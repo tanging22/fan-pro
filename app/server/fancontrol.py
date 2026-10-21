@@ -379,6 +379,7 @@ class Engine:
             st["temps"] = dict(self.state["temps"])
             st["alert"] = dict(self.state["alert"])
             st["stats"] = dict(self.stats)
+        st["manual_pwm"] = int(self.cfg.get("manual_pwm", 128))
         st["uptime"] = int(time.time() - self.started_at)
         st["pwm_channel"] = self.pwm
         st["fake"] = FAKE

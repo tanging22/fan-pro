@@ -69,18 +69,22 @@ async function poll() {
   blades.style.setProperty("--spin-dur", dur + "s");
   blades.style.animationPlayState = rpm > 0 ? "running" : "paused";
   // 下发转速条（桌面横放 / 窄屏立右侧）：填充 + 手柄（拖动中不被轮询覆盖）
-  const tgtRpm = Math.round(((s.target_pwm ?? s.pwm ?? 0) / 255) * mr);
-  const pct = Math.round(Math.max(0, Math.min(100, (tgtRpm / mr) * 100))) + "%";
-  const pc = pct + "%";
+  // 手动模式基准 = manual_pwm（当前设定，打开即在正确位置）；自动 = 实际下发 target_pwm
+  const basePwm = s.mode === "manual" ? (s.manual_pwm ?? s.target_pwm ?? s.pwm ?? 0)
+                                      : (s.target_pwm ?? s.pwm ?? 0);
+  const tgtRpm = Math.round((basePwm / 255) * mr);
+  const pctN = Math.round(Math.max(0, Math.min(100, (tgtRpm / mr) * 100)));
+  const pct = pctN + "%";                 // 显示用
+  const pc = pct;                          // 样式用（同一值，勿再加 %）
   if (!railDrag) {
     if (railVertical()) {
       $("#rail-fill").style.width = "100%";
       $("#rail-fill").style.height = pc;
-      $("#rail-thumb").style.bottom = "calc(" + pc + " - 11px)";
+      $("#rail-thumb").style.bottom = "calc(" + pc + " - 12px)";
     } else {
       $("#rail-fill").style.width = pc;
       $("#rail-fill").style.height = "100%";
-      $("#rail-thumb").style.left = "calc(" + pc + " - 11px)";
+      $("#rail-thumb").style.left = "calc(" + pc + " - 12px)";
     }
     $("#rail-label").textContent = (s.mode === "manual" ? "手动 · " : "下发 · ") + pct;
   }
@@ -197,14 +201,14 @@ function railApply(clientX, clientY) {
   if (railVertical()) {
     $("#rail-fill").style.width = "100%";
     $("#rail-fill").style.height = pc;
-    $("#rail-thumb").style.bottom = "calc(" + pc + " - 11px)";
+    $("#rail-thumb").style.bottom = "calc(" + pc + " - 12px)";
   } else {
     $("#rail-fill").style.width = pc;
     $("#rail-fill").style.height = "100%";
-    $("#rail-thumb").style.left = "calc(" + pc + " - 11px)";
+    $("#rail-thumb").style.left = "calc(" + pc + " - 12px)";
   }
   $("#rail-label").textContent = "手动 · " + Math.round(clamped * 100) + "%";
-  if (MODE === "manual") sendTargetRpm(rpm);
+  if (MODE === "manual") { sendTargetRpm(rpm); CFG.manual_pwm = Math.round(clamped * 255); }
 }
 
 rail.addEventListener("pointerdown", (e) => {
