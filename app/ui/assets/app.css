@@ -101,14 +101,14 @@ footer { grid-area: foot; }
 .hero {
   display: grid;
   grid-template-columns: auto 1fr;
-  grid-template-rows: auto auto;
+  grid-template-rows: auto auto auto;
   gap: 10px 22px;
   align-items: center;
 }
 .fan-wrap {
   position: relative;
   width: clamp(150px, 22vw, 220px); height: clamp(150px, 22vw, 220px);
-  grid-column: 1; grid-row: 1 / span 2;
+  grid-column: 1; grid-row: 1 / span 3;
 }
 .fan { width: 100%; height: 100%; display: block; }
 .blades { transform-origin: 100px 100px; animation: spin var(--spin-dur, 2s) linear infinite; }
@@ -118,8 +118,7 @@ footer { grid-area: foot; }
   background: radial-gradient(circle, rgba(14,165,201,.14), transparent 70%);
   z-index: -1;
 }
-.rpm-rail { grid-column: 2; grid-row: 1; min-width: 0; }
-.rail-track {
+.rpm-rail { grid-column: 2; grid-row: 1; min-width: 0; }.rail-track {
   position: relative; height: 28px; border-radius: 8px;
   background: var(--card2); border: 1px solid var(--line);
 }
@@ -143,8 +142,8 @@ footer { grid-area: foot; }
   font-size: 12px; color: var(--fg); text-shadow: 0 1px 2px rgba(255,255,255,.6);
   font-variant-numeric: tabular-nums; pointer-events: none;
 }
-.rail-meta { grid-column: 2; grid-row: 2; min-width: 0; text-align: center; }
-.rpm-line { display: flex; align-items: baseline; gap: 6px; justify-content: center; }
+.rpm-line { grid-column: 2; grid-row: 2; display: flex; align-items: baseline; gap: 6px; justify-content: center; }
+.rail-meta { grid-column: 2; grid-row: 3; min-width: 0; text-align: center; }
 #rpm {
   font-size: clamp(40px, 6vw, 56px); font-weight: 700; line-height: 1;
   color: var(--acc2); font-variant-numeric: tabular-nums;
@@ -154,9 +153,10 @@ footer { grid-area: foot; }
 .active-line b { color: var(--acc2); font-weight: 600; }
 .err-line { color: var(--bad); font-size: 12px; margin-top: 6px; }
 .stat-row {
-  display: flex; justify-content: center; align-items: stretch;
-  gap: 10px; margin-top: 12px; flex-wrap: wrap;
+  display: grid; grid-template-columns: repeat(2, 1fr);
+  gap: 10px; margin-top: 12px;
 }
+.stat:last-child { grid-column: 1 / -1; }  /* 最高温度独占一行，与上面对齐 */
 .stat {
   background: rgba(14,165,201,.06); border: 1px solid rgba(14,165,201,.14);
   border-radius: 10px; padding: 7px 14px; min-width: 96px;
@@ -286,10 +286,10 @@ footer { text-align: center; color: #9fb0bf; font-size: 11px; margin-top: 4px; }
       "hero" "mode" "temps" "curve" "bark" "foot";
   }
 
-  /* ---- hero：左风扇，右侧三个竖排信息框，底部全宽横滑条 ---- */
+  /* ---- hero：左风扇 + 正下方当前转速，右侧三个竖排信息框，底部全宽横滑条 ---- */
   .hero {
     grid-template-columns: auto 1fr;
-    grid-template-rows: auto auto;
+    grid-template-rows: auto auto auto;
     gap: 10px 14px;
     align-items: center;
   }
@@ -297,15 +297,24 @@ footer { text-align: center; color: #9fb0bf; font-size: 11px; margin-top: 4px; }
     grid-column: 1; grid-row: 1;
     width: clamp(120px, 34vw, 150px); height: clamp(120px, 34vw, 150px);
   }
-  /* 右侧信息框竖排 */
+  /* 当前转速：风扇正下方 */
+  .rpm-line {
+    grid-column: 1; grid-row: 2;
+    justify-content: center; gap: 5px; flex-wrap: nowrap;
+  }
+  #rpm { font-size: 32px; }
+  .rpm-cap { font-size: 12px; color: var(--dim); }
+  .rpm-unit { font-size: 12px; }
+  /* 右侧信息框竖排（与风扇+转速等高，垂直居中） */
   .rail-meta {
-    grid-column: 2; grid-row: 1;
+    grid-column: 2; grid-row: 1 / span 2;
     text-align: left;
-    display: flex; flex-direction: column; gap: 8px;
+    display: flex; flex-direction: column; justify-content: center; gap: 8px;
     min-width: 0;
   }
   .stat-row { display: contents; }              /* 让三个 stat 独立成框 */
   .stat {
+    order: 1;
     background: var(--card2); border: 1.5px solid var(--fg);
     border-radius: 10px; padding: 8px 12px; min-width: 0;
     display: flex; align-items: center; justify-content: space-between; gap: 8px;
@@ -315,15 +324,11 @@ footer { text-align: center; color: #9fb0bf; font-size: 11px; margin-top: 4px; }
     font-size: 13px; font-weight: 600; text-align: right;
     min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  /* RPM 大字并入右侧第二框（温度位）附近：放在 active-line 上方 */
-  .rpm-line { justify-content: flex-start; gap: 5px; flex-wrap: wrap; }
-  #rpm { font-size: 30px; }
-  .rpm-cap { font-size: 12px; color: var(--dim); }
-  .rpm-unit { font-size: 12px; }
-  .active-line { font-size: 11.5px; margin-top: 0; }
+  .active-line { order: 2; font-size: 11.5px; margin-top: 0; }
+  .err-line { order: 3; }
 
   /* 底部全宽横向滑动条 */
-  .rpm-rail { grid-column: 1 / -1; grid-row: 2; }
+  .rpm-rail { grid-column: 1 / -1; grid-row: 3; }
   .rail-track {
     width: 100%; height: 30px; border-radius: 9px; touch-action: none;
   }
