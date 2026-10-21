@@ -154,6 +154,42 @@
 </div>
 
 <div id="toast" class="hidden"></div>
+<script>
+/* 演示模式：仅当以 file:// 双击打开本页时生效，注入假数据；部署后 http 访问完全不走这段 */
+if (location.protocol === "file:") {
+  const fakeStatus = () => ({
+    ok: true,
+    data: {
+      ok: true, mode: "auto", rpm: 1800 + Math.round(Math.sin(Date.now() / 2800) * 90),
+      target_pwm: 152, manual_pwm: 150,
+      uptime: 3 * 86400 + 4 * 3600 + 12 * 60 + 33,
+      temps: { cpu: 46.2, gpu: 41.0, disk: 38.5, cpu_method: "max", disk_method: "max" },
+      stats: { max_cpu: 52.3, max_disk: 41.8, max_rpm: 1932 },
+      threshold: { low: { temp: 40, pwm: 80 }, high: { temp: 70, pwm: 200 } },
+      active: "cpu", errors: [], conflicts: [], fake: true,
+    },
+  });
+  const fakeConfig = {
+    ok: true,
+    data: {
+      mode: "auto", fan: { max_rpm: 3000 },
+      cpu: { method: "max", curve: [{ temp: 35, pwm: 60 }, { temp: 45, pwm: 110 }, { temp: 60, pwm: 170 }, { temp: 75, pwm: 230 }, { temp: 85, pwm: 255 }] },
+      disk: { method: "max", disks: [], curve: [{ temp: 30, pwm: 60 }, { temp: 40, pwm: 100 }, { temp: 50, pwm: 160 }] },
+      bark: { enabled: false, url: "", icon: "", group: "fan-pro" },
+      alert: { hostname: "演示 NAS", enabled: true, cpu_temp: 62, disk_temp: 42, interval: 60 },
+    },
+  };
+  const J = (o) => Promise.resolve(new Response(JSON.stringify(o), { headers: { "Content-Type": "application/json" } }));
+  window.fetch = async (url, opts) => {
+    const u = String(url), m = (opts && opts.method) || "GET";
+    await new Promise(r => setTimeout(r, 90));
+    if (u.includes("/api/status")) return J(fakeStatus());
+    if (u.includes("/api/config")) return m === "GET" ? J(fakeConfig) : J({ ok: true, data: fakeConfig.data });
+    if (u.includes("/api/disks")) return J({ ok: true, data: { disks: [{ name: "nvme0n1", model: "Samsung 990 Pro", temp: 38 }, { name: "sata1", model: "WD Red Plus 4TB", temp: 39 }] } });
+    return J({ ok: true, data: {} });
+  };
+}
+</script>
 <script src="assets/app.js"></script>
 </body>
 </html>

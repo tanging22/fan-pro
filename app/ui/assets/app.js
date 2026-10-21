@@ -288,12 +288,22 @@ function renderCurve() {
       <input type="number" data-i="${i}" data-k="pwm" value="${p.pwm}" min="0" max="255" step="1"> PWM
       <span class="del" data-i="${i}">✕</span>
     </div>`).join("");
-  $$("#curve-rows input").forEach(inp => inp.oninput = () => {
-    const p = editingCurve[+inp.dataset.i];
-    if (!p) return;
-    p[inp.dataset.k] = +inp.value;
-    editingCurve.sort((a, b) => a.temp - b.temp);
-    renderCurve();
+  $$("#curve-rows input").forEach(inp => {
+    inp.oninput = () => {                       // 输入中：只更新数据 + 重画曲线，绝不重建表格（保住焦点）
+      const p = editingCurve[+inp.dataset.i];
+      if (!p) return;
+      p[inp.dataset.k] = +inp.value;
+      drawCurve();
+    };
+    inp.onchange = () => {                      // 提交（失焦/回车）：只有顺序变了才重建行
+      const p = editingCurve[+inp.dataset.i];
+      if (p && inp.dataset.k === "pwm") p.pwm = Math.max(0, Math.min(255, +inp.value || 0));
+      const before = editingCurve.map(x => x.temp).join(",");
+      editingCurve.sort((a, b) => a.temp - b.temp);
+      const after = editingCurve.map(x => x.temp).join(",");
+      if (before !== after) renderCurve();
+      else drawCurve();
+    };
   });
   $$("#curve-rows .del").forEach(d => d.onclick = () => {
     editingCurve.splice(+d.dataset.i, 1);
