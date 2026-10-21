@@ -143,8 +143,8 @@ footer { grid-area: foot; }
   font-size: 12px; color: var(--fg); text-shadow: 0 1px 2px rgba(255,255,255,.6);
   font-variant-numeric: tabular-nums; pointer-events: none;
 }
-.rail-meta { grid-column: 2; grid-row: 2; min-width: 0; }
-.rpm-line { display: flex; align-items: baseline; gap: 6px; }
+.rail-meta { grid-column: 2; grid-row: 2; min-width: 0; text-align: center; }
+.rpm-line { display: flex; align-items: baseline; gap: 6px; justify-content: center; }
 #rpm {
   font-size: clamp(40px, 6vw, 56px); font-weight: 700; line-height: 1;
   color: var(--acc2); font-variant-numeric: tabular-nums;
@@ -153,6 +153,17 @@ footer { grid-area: foot; }
 .active-line { color: var(--dim); font-size: 13px; margin-top: 6px; }
 .active-line b { color: var(--acc2); font-weight: 600; }
 .err-line { color: var(--bad); font-size: 12px; margin-top: 6px; }
+.stat-row {
+  display: flex; justify-content: center; align-items: stretch;
+  gap: 10px; margin-top: 12px; flex-wrap: wrap;
+}
+.stat {
+  background: rgba(14,165,201,.06); border: 1px solid rgba(14,165,201,.14);
+  border-radius: 10px; padding: 7px 14px; min-width: 96px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.s-label { font-size: 11px; color: var(--dim); }
+.s-val { font-size: 14px; font-weight: 600; color: var(--text); white-space: nowrap; }
 
 /* seg 开关 */
 .seg { display: flex; background: var(--card2); border: 1px solid var(--line); border-radius: 10px; padding: 3px; gap: 3px; }
@@ -276,7 +287,7 @@ footer { text-align: center; color: #9fb0bf; font-size: 11px; margin-top: 4px; }
   }
   .temps { grid-template-columns: 1fr; }
   .hero { grid-template-columns: 1fr auto; gap: 10px 14px; }
-  .fan-wrap { width: 168px; height: 168px; }
+  .fan-wrap { width: 168px; height: 168px; grid-row: 1; }
   .rpm-rail { grid-column: 2; grid-row: 1; justify-self: end; align-self: center; }
   .rail-track {
     width: 22px; height: clamp(130px, 32vh, 190px);
@@ -291,6 +302,10 @@ footer { text-align: center; color: #9fb0bf; font-size: 11px; margin-top: 4px; }
   .rail-label { display: none; }
   .rpm-rail { display: flex; flex-direction: column; align-items: center; gap: 6px; }
   .rail-meta { grid-column: 1 / -1; grid-row: 2; }
+  .stat-row { gap: 6px; }
+  .stat { padding: 5px 9px; min-width: 0; }
+  .s-val { font-size: 12.5px; }
+  .s-label { font-size: 10px; }
   #rpm { font-size: 42px; }
   .form-row { flex-wrap: wrap; }
   .form-row label { min-width: 80px; }

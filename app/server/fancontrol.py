@@ -97,6 +97,8 @@ class Engine:
         }
         self._hist_cpu = deque(maxlen=8)
         self._hist_disk = deque(maxlen=8)
+        self.started_at = time.time()
+        self.stats = {"max_rpm": 0, "max_cpu": None, "max_disk": None}
         self._last_alert = {}
         self._stop = threading.Event()
         self._thread = None
@@ -196,6 +198,10 @@ class Engine:
         else:
             errs.append("没有可测温的选中磁盘")
         with self.lock:
+            if cpu_t is not None and (self.stats["max_cpu"] is None or cpu_t > self.stats["max_cpu"]):
+                self.stats["max_cpu"] = cpu_t
+            if disk_t is not None and (self.stats["max_disk"] is None or disk_t > self.stats["max_disk"]):
+                self.stats["max_disk"] = disk_t
             self.state["temps"] = {
                 "cpu": cpu_t, "gpu": gpu_t, "disk": disk_t,
                 "disks": disk_map,
@@ -241,6 +247,8 @@ class Engine:
             self.state.update({"rpm": rpm, "pwm": target if FAKE else (self._read_pwm() or target),
                                "target_pwm": target, "mode": mode,
                                "active": active, "threshold": th})
+            if rpm > self.stats["max_rpm"]:
+                self.stats["max_rpm"] = rpm
 
     def _read_pwm(self):
         if not self.pwm or FAKE:
@@ -370,6 +378,8 @@ class Engine:
             st = dict(self.state)
             st["temps"] = dict(self.state["temps"])
             st["alert"] = dict(self.state["alert"])
+            st["stats"] = dict(self.stats)
+        st["uptime"] = int(time.time() - self.started_at)
         st["pwm_channel"] = self.pwm
         st["fake"] = FAKE
         return st

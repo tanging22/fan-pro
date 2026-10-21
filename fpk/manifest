@@ -1,5 +1,5 @@
 appname              = fan-pro
-version              = 1.1.1
+version              = 1.1.2
 display_name         = 风扇管家
 desc                 = 本机风扇 PWM 智能调控：温度曲线、手动定速、Bark 告警
 platform             = all

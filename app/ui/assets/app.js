@@ -35,6 +35,14 @@ let editingCurve = null;   // 编辑中的曲线数组
 let tmTarget = null;       // 温度弹窗目标 cpu/disk
 let diskListCache = [];
 
+function fmtUptime(sec) {
+  if (!sec || sec < 60) return sec ? sec + " 秒" : "--";
+  const d = Math.floor(sec / 86400), h = Math.floor(sec % 86400 / 3600), m = Math.floor(sec % 3600 / 60);
+  if (d) return d + " 天 " + h + " 小时";
+  if (h) return h + " 小时 " + m + " 分";
+  return m + " 分钟";
+}
+
 /* ---------------- 状态轮询 ---------------- */
 function maxRpm() { return (CFG && CFG.fan && CFG.fan.max_rpm) || 3000; }
 
@@ -62,7 +70,7 @@ async function poll() {
   blades.style.animationPlayState = rpm > 0 ? "running" : "paused";
   // 下发转速条（桌面横放 / 窄屏立右侧）：填充 + 手柄（拖动中不被轮询覆盖）
   const tgtRpm = Math.round(((s.target_pwm ?? s.pwm ?? 0) / 255) * mr);
-  const pct = Math.max(0, Math.min(100, (tgtRpm / mr) * 100));
+  const pct = Math.round(Math.max(0, Math.min(100, (tgtRpm / mr) * 100))) + "%";
   const pc = pct + "%";
   if (!railDrag) {
     if (railVertical()) {
@@ -74,7 +82,7 @@ async function poll() {
       $("#rail-fill").style.height = "100%";
       $("#rail-thumb").style.left = "calc(" + pc + " - 11px)";
     }
-    $("#rail-label").textContent = (s.mode === "manual" ? "手动 · " : "下发 · ") + tgtRpm + " RPM";
+    $("#rail-label").textContent = (s.mode === "manual" ? "手动 · " : "下发 · ") + pct;
   }
   $("#rail-thumb").style.opacity = s.mode === "manual" ? 1 : 0.55;
   $("#rail-track").classList.toggle("draggable", s.mode === "manual");
@@ -107,6 +115,14 @@ async function poll() {
   $("#t-gpu").innerHTML = t.gpu != null ? t.gpu.toFixed(1) + '<span class="deg"> °C</span>' : "--";
   $("#t-disk").innerHTML = t.disk != null ? t.disk.toFixed(1) + '<span class="deg"> °C</span>' : "--";
   $("#cpu-method-label").textContent = t.cpu_method === "avg" ? "平均" : "最高";
+  // 本次运行统计
+  $("#st-uptime").textContent = fmtUptime(s.uptime || 0);
+  const stt = s.stats || {};
+  const tmax = [];
+  if (stt.max_cpu != null) tmax.push("CPU " + stt.max_cpu + "°C");
+  if (stt.max_disk != null) tmax.push("盘 " + stt.max_disk + "°C");
+  $("#st-tmax").textContent = tmax.length ? tmax.join(" · ") : "--";
+  $("#st-rmax").textContent = stt.max_rpm ? stt.max_rpm.toLocaleString() + " RPM" : "--";
   $("#disk-method-label").textContent = t.disk_method === "avg" ? "平均" : "最高";
   // 模式按钮
   $$("#mode-seg .seg-btn").forEach(b => b.classList.toggle("on", b.dataset.mode === s.mode));
@@ -187,7 +203,7 @@ function railApply(clientX, clientY) {
     $("#rail-fill").style.height = "100%";
     $("#rail-thumb").style.left = "calc(" + pc + " - 11px)";
   }
-  $("#rail-label").textContent = "手动 · " + rpm + " RPM";
+  $("#rail-label").textContent = "手动 · " + Math.round(clamped * 100) + "%";
   if (MODE === "manual") sendTargetRpm(rpm);
 }
 
