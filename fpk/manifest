@@ -1,5 +1,5 @@
 appname              = fan-pro
-version              = 1.0.0
+version              = 1.0.1
 display_name         = 风扇管家
 desc                 = 本机风扇 PWM 智能调控：温度曲线、手动定速、Bark 告警
 platform             = all
@@ -11,7 +11,8 @@ ctl_stop             = true
 install_type         = root
 install_dep_apps     =
 desktop_uidir        = ui
-desktop_applaunchname= fan-pro.Application
+desktop_applaunchname = fan-pro.Application
 service_port         = 28200
 checkport            = false
+micro_app            = true
 checksum             = 00000000000000000000000000000000
