@@ -29,23 +29,36 @@ function toast(msg, kind = "", ms = 2600) {
 }
 
 let CFG = null;            // 服务端配置副本
+let MODE = "auto";         // 实时模式（轮询更新，竖条拖动判断用）
 let curveTab = "cpu";      // 当前曲线 tab
 let editingCurve = null;   // 编辑中的曲线数组
 let tmTarget = null;       // 温度弹窗目标 cpu/disk
 let diskListCache = [];
 
 /* ---------------- 状态轮询 ---------------- */
+function maxRpm() { return (CFG && CFG.fan && CFG.fan.max_rpm) || 3000; }
+
 async function poll() {
   const r = await api("GET", "/api/status");
   if (!r.ok) return;
   const s = r.data;
+  MODE = s.mode || "auto";
+  const mr = maxRpm();
   // 转速 & 风扇动画
   const rpm = s.rpm || 0;
   $("#rpm").textContent = rpm || "--";
+  $("#rail-num").textContent = rpm || "--";
   const dur = rpm > 0 ? Math.max(0.32, Math.min(3.5, 3.5 - (rpm / 1000) * 1.15)) : 0;
   const blades = $("#blades");
   blades.style.setProperty("--spin-dur", dur + "s");
   blades.style.animationPlayState = rpm > 0 ? "running" : "paused";
+  // 竖直转速条（窄屏显示）：填充 + 手柄（拖动中不被轮询覆盖）
+  const pct = Math.max(0, Math.min(100, (rpm / mr) * 100));
+  if (!railDrag) {
+    $("#rail-fill").style.height = pct + "%";
+    $("#rail-thumb").style.bottom = "calc(" + pct + "% - 11px)";
+  }
+  $("#rail-thumb").style.opacity = s.mode === "manual" ? 1 : 0.55;
   // PWM 进度条
   const pwm = s.pwm || 0;
   $("#pwm-bar").style.width = Math.round((pwm / 255) * 100) + "%";
@@ -82,9 +95,11 @@ async function poll() {
   // 模式按钮
   $$("#mode-seg .seg-btn").forEach(b => b.classList.toggle("on", b.dataset.mode === s.mode));
   $("#manual-box").classList.toggle("hidden", s.mode !== "manual");
+  $("#auto-box").classList.toggle("hidden", s.mode === "manual");
   if (s.mode === "manual" && document.activeElement !== $("#pwm-slider")) {
-    $("#pwm-slider").value = s.target_pwm;
-    $("#slider-val").textContent = s.target_pwm;
+    const targetRpm = Math.round(((s.target_pwm ?? s.pwm ?? 0) / 255) * mr);
+    $("#pwm-slider").value = targetRpm;
+    $("#slider-val").textContent = targetRpm;
   }
 }
 
@@ -104,9 +119,14 @@ async function loadConfig() {
   $("#alert-cpu").value = a.cpu_temp ?? 62;
   $("#alert-disk").value = a.disk_temp ?? 42;
   $("#alert-interval").value = a.interval ?? 60;
-  // 滑条初值
-  $("#pwm-slider").value = CFG.manual_pwm ?? 128;
-  $("#slider-val").textContent = CFG.manual_pwm ?? 128;
+  // 滑条初值（RPM 语义）
+  const mr = maxRpm();
+  const sl = $("#pwm-slider");
+  sl.min = 0; sl.max = mr; sl.step = Math.max(25, Math.round(mr / 100));
+  const initRpm = Math.round(((CFG.manual_pwm ?? 128) / 255) * mr);
+  sl.value = initRpm;
+  $("#slider-val").textContent = initRpm;
+  $("#max-rpm-hint").textContent = mr;
   switchCurve(curveTab);
 }
 
@@ -129,19 +149,57 @@ async function saveConfig(patch, quiet) {
 /* ---------------- 模式 & 滑条 ---------------- */
 $$("#mode-seg .seg-btn").forEach(b => b.onclick = async () => {
   const r = await api("POST", "/api/mode", { mode: b.dataset.mode });
-  if (r.ok) { toast(b.dataset.mode === "manual" ? "已切手动定速" : "已切自动曲线", "good"); poll(); }
+  if (r.ok) { MODE = b.dataset.mode; CFG.mode = MODE; toast(MODE === "manual" ? "已切手动定速" : "已切自动曲线", "good"); poll(); }
   else toast(r.error, "bad");
 });
 
 let pwmTimer = null;
-$("#pwm-slider").addEventListener("input", (e) => {
-  $("#slider-val").textContent = e.target.value;
+function sendTargetRpm(rpm) {
   clearTimeout(pwmTimer);
   pwmTimer = setTimeout(async () => {
-    const r = await api("POST", "/api/pwm", { pwm: +e.target.value });
+    const r = await api("POST", "/api/pwm", { rpm });
     if (!r.ok) toast(r.error, "bad");
   }, 350);
+}
+
+$("#pwm-slider").addEventListener("input", (e) => {
+  $("#slider-val").textContent = e.target.value;
+  sendTargetRpm(+e.target.value);
 });
+
+/* 竖直转速条拖动（窄屏显示；手动模式下可拖动控制转速） */
+const rail = $("#rail-track");
+let railDrag = false;
+let railPid = null;
+
+function railApply(clientY) {
+  const rect = rail.getBoundingClientRect();
+  const ratio = 1 - (clientY - rect.top) / rect.height;   // 顶部 = 满速
+  const clamped = Math.max(0, Math.min(1, ratio));
+  const mr = maxRpm();
+  const rpm = Math.round(clamped * mr);
+  $("#rail-fill").style.height = (clamped * 100) + "%";
+  $("#rail-thumb").style.bottom = "calc(" + (clamped * 100) + "% - 11px)";
+  $("#rail-num").textContent = rpm;
+  if (MODE === "manual") {
+    $("#pwm-slider").value = rpm;
+    $("#slider-val").textContent = rpm;
+    sendTargetRpm(rpm);
+  }
+}
+
+rail.addEventListener("pointerdown", (e) => {
+  railDrag = true;
+  railPid = e.pointerId;
+  rail.setPointerCapture(e.pointerId);
+  railApply(e.clientY);
+  e.preventDefault();
+});
+rail.addEventListener("pointermove", (e) => {
+  if (railDrag && e.pointerId === railPid) railApply(e.clientY);
+});
+rail.addEventListener("pointerup", () => railDrag = false);
+rail.addEventListener("pointercancel", () => railDrag = false);
 
 /* ---------------- 温度设置弹窗 ---------------- */
 $$(".link-btn[data-set]").forEach(b => b.onclick = () => openTempModal(b.dataset.set));
@@ -187,7 +245,7 @@ $("#tm-save").onclick = async () => {
   }
 };
 
-/* ---------------- 曲线编辑 ---------------- */
+/* ---------------- 曲线编辑（表格 + 可拖动画布） ---------------- */
 $$(".tab").forEach(t => t.onclick = () => switchCurve(t.dataset.curve));
 
 function switchCurve(tab) {
@@ -200,7 +258,7 @@ function switchCurve(tab) {
 function renderCurve() {
   editingCurve.sort((a, b) => a.temp - b.temp);
   $("#curve-rows").innerHTML = editingCurve.map((p, i) => `
-    <div class="curve-row">
+    <div class="curve-row" data-i="${i}">
       <input type="number" data-i="${i}" data-k="temp" value="${p.temp}" step="1"> °C
       <span style="color:var(--dim)">→</span>
       <input type="number" data-i="${i}" data-k="pwm" value="${p.pwm}" min="0" max="255" step="1"> PWM
@@ -210,7 +268,8 @@ function renderCurve() {
     const p = editingCurve[+inp.dataset.i];
     if (!p) return;
     p[inp.dataset.k] = +inp.value;
-    drawCurve();
+    editingCurve.sort((a, b) => a.temp - b.temp);
+    renderCurve();
   });
   $$("#curve-rows .del").forEach(d => d.onclick = () => {
     editingCurve.splice(+d.dataset.i, 1);
@@ -221,7 +280,7 @@ function renderCurve() {
 
 $("#curve-add").onclick = () => {
   const last = editingCurve[editingCurve.length - 1] || { temp: 40, pwm: 100 };
-  editingCurve.push({ temp: last.temp + 5, pwm: Math.min(255, last.pwm + 25) });
+  editingCurve.push({ temp: Math.min(95, last.temp + 5), pwm: Math.min(255, last.pwm + 25) });
   renderCurve();
 };
 
@@ -236,45 +295,120 @@ $("#curve-save").onclick = async () => {
   if (await saveConfig(patch)) toast("曲线已保存", "good");
 };
 
+/* 画布视图参数（拖拽换算用） */
+let view = null;
+
 function drawCurve() {
   const cv = $("#curve-canvas");
-  const W = cv.clientWidth || 600, H = 150;
+  const W = cv.clientWidth || 600, H = cv.clientHeight || 170;
   cv.width = W * devicePixelRatio; cv.height = H * devicePixelRatio;
   const ctx = cv.getContext("2d");
   ctx.scale(devicePixelRatio, devicePixelRatio);
   ctx.clearRect(0, 0, W, H);
   const pts = [...editingCurve].sort((a, b) => a.temp - b.temp);
-  if (!pts.length) return;
-  const tMin = pts[0].temp - 4, tMax = pts[pts.length - 1].temp + 4;
-  const pad = { l: 34, r: 12, t: 12, b: 20 };
+  if (!pts.length) { view = null; return; }
+  const tMin = Math.min(20, pts[0].temp - 4), tMax = Math.max(90, pts[pts.length - 1].temp + 4);
+  const pad = { l: 36, r: 14, t: 14, b: 24 };
   const X = (t) => pad.l + (t - tMin) / (tMax - tMin || 1) * (W - pad.l - pad.r);
   const Y = (p) => H - pad.b - p / 255 * (H - pad.t - pad.b);
+  view = { W, H, pad, tMin, tMax, X, Y, pts };
   // 网格
-  ctx.strokeStyle = "#1c3242"; ctx.lineWidth = 1;
-  ctx.font = "10px sans-serif"; ctx.fillStyle = "#5b7f99";
+  ctx.strokeStyle = "#dbe4ec"; ctx.lineWidth = 1;
+  ctx.font = "10px sans-serif"; ctx.fillStyle = "#8aa0b2";
   for (let p = 0; p <= 255; p += 64) {
     ctx.beginPath(); ctx.moveTo(pad.l, Y(p)); ctx.lineTo(W - pad.r, Y(p)); ctx.stroke();
-    ctx.fillText(p, 6, Y(p) + 3);
+    ctx.fillText(p, 4, Y(p) + 3);
   }
   for (let t = Math.ceil(tMin / 10) * 10; t <= tMax; t += 10) {
-    ctx.fillText(t + "°", X(t) - 8, H - 6);
+    ctx.fillText(t + "°", X(t) - 8, H - 8);
   }
   // 折线
-  ctx.strokeStyle = "#3fc3ec"; ctx.lineWidth = 2;
+  ctx.strokeStyle = "#0ea5c9"; ctx.lineWidth = 2;
   ctx.beginPath();
   pts.forEach((p, i) => i ? ctx.lineTo(X(p.temp), Y(p.pwm)) : ctx.moveTo(X(p.temp), Y(p.pwm)));
   ctx.stroke();
   // 点
-  ctx.fillStyle = "#7de3ff";
-  pts.forEach(p => { ctx.beginPath(); ctx.arc(X(p.temp), Y(p.pwm), 3.5, 0, 7); ctx.fill(); });
+  pts.forEach(p => {
+    ctx.beginPath(); ctx.arc(X(p.temp), Y(p.pwm), 5, 0, 7);
+    ctx.fillStyle = "#ffffff"; ctx.fill();
+    ctx.lineWidth = 2.5; ctx.strokeStyle = "#0d7bb0"; ctx.stroke();
+  });
   // 当前温度竖线
   const cur = curveTab === "cpu" ? parseFloat($("#t-cpu").textContent) : parseFloat($("#t-disk").textContent);
   if (!isNaN(cur) && cur >= tMin && cur <= tMax) {
-    ctx.strokeStyle = "#ffb648"; ctx.setLineDash([4, 4]);
+    ctx.strokeStyle = "#e09a2e"; ctx.setLineDash([4, 4]);
     ctx.beginPath(); ctx.moveTo(X(cur), pad.t); ctx.lineTo(X(cur), H - pad.b); ctx.stroke();
     ctx.setLineDash([]);
   }
 }
+
+/* 拖拽交互：命中节点拖动 / 点击线段插入 */
+const cvEl = () => $("#curve-canvas");
+
+function canvasPos(e) {
+  const r = cvEl().getBoundingClientRect();
+  return { x: e.clientX - r.left, y: e.clientY - r.top };
+}
+
+let dragIdx = -1;
+
+cvEl().addEventListener("pointerdown", (e) => {
+  if (!view) return;
+  const p = canvasPos(e);
+  const pts = view.pts;
+  // 命中最近点
+  let best = -1, bestD = 24;
+  pts.forEach((pt, i) => {
+    const d = Math.hypot(p.x - view.X(pt.temp), p.y - view.Y(pt.pwm));
+    if (d < bestD) { bestD = d; best = i; }
+  });
+  if (best >= 0) {
+    dragIdx = best;
+    cvEl().setPointerCapture(e.pointerId);
+    e.preventDefault();
+    return;
+  }
+  // 点击空白线段 → 插入新档位
+  if (p.x > view.pad.l && p.x < view.W - view.pad.r && p.y > view.pad.t && p.y < view.H - view.pad.b) {
+    const t = Math.round(view.tMin + (p.x - view.pad.l) / (view.W - view.pad.l - view.pad.r) * (view.tMax - view.tMin));
+    const pw = Math.round((view.H - view.pad.b - p.y) / (view.H - view.pad.t - view.pad.b) * 255);
+    editingCurve.push({ temp: Math.min(95, Math.max(20, t)), pwm: Math.max(0, Math.min(255, pw)) });
+    renderCurve();
+  }
+});
+
+cvEl().addEventListener("pointermove", (e) => {
+  if (dragIdx < 0 || !view) return;
+  const p = canvasPos(e);
+  const pt = editingCurve[dragIdx];
+  if (!pt) return;
+  const raw = Math.round(view.tMin + (p.x - view.pad.l) / (view.W - view.pad.l - view.pad.r) * (view.tMax - view.tMin));
+  // 温度夹在相邻档位之间，保持单调
+  const sorted = [...editingCurve].sort((a, b) => a.temp - b.temp);
+  const i = sorted.indexOf(pt);
+  const lo = i > 0 ? sorted[i - 1].temp + 1 : 20;
+  const hi = i < sorted.length - 1 ? sorted[i + 1].temp - 1 : 95;
+  pt.temp = Math.min(hi, Math.max(lo, raw));
+  pt.pwm = Math.max(0, Math.min(255, Math.round((view.H - view.pad.b - p.y) / (view.H - view.pad.t - view.pad.b) * 255)));
+  // 同步表格（不整体重渲染，避免拖动中丢失焦点）
+  const rows = $$("#curve-rows .curve-row");
+  const row = rows[dragIdx];
+  if (row) {
+    row.querySelector('[data-k="temp"]').value = pt.temp;
+    row.querySelector('[data-k="pwm"]').value = pt.pwm;
+  }
+  drawCurve();
+});
+
+function endDrag() {
+  if (dragIdx >= 0) {
+    editingCurve.sort((a, b) => a.temp - b.temp);
+    renderCurve();
+    dragIdx = -1;
+  }
+}
+cvEl().addEventListener("pointerup", endDrag);
+cvEl().addEventListener("pointercancel", endDrag);
 
 /* ---------------- Bark ---------------- */
 $("#bark-test").onclick = async () => {

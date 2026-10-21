@@ -106,13 +106,22 @@ def api_mode():
 @app.post("/api/pwm")
 def api_pwm():
     body = request.get_json(silent=True) or {}
-    try:
-        pwm = int(body.get("pwm"))
-    except (TypeError, ValueError):
-        return err("pwm 必须是整数")
-    if not 0 <= pwm <= 255:
-        return err("pwm 范围 0-255")
     cfg = dict(engine.cfg)
+    # 支持直接以目标转速（RPM）控制：pwm = rpm / max_rpm * 255
+    if body.get("rpm") is not None:
+        try:
+            rpm = int(body.get("rpm"))
+        except (TypeError, ValueError):
+            return err("rpm 必须是整数")
+        max_rpm = int(cfg.get("fan", {}).get("max_rpm") or 3000) or 3000
+        pwm = round(max(0, min(rpm, max_rpm)) / max_rpm * 255)
+    else:
+        try:
+            pwm = int(body.get("pwm"))
+        except (TypeError, ValueError):
+            return err("pwm/rpm 必须是整数")
+    if not 0 <= pwm <= 255:
+        return err("换算后 pwm 范围 0-255")
     cfg["manual_pwm"] = pwm
     engine.save_config(cfg)
     return ok({"pwm": pwm})
