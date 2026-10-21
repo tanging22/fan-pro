@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>风扇管家</title>
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body>
+<header>
+  <div class="brand"><span class="logo" aria-hidden="true"></span>风扇管家 <b id="hostname"></b></div>
+  <div class="head-right">
+    <span id="conflict" class="pill pill-warn hidden">检测到 fn-fan 在运行</span>
+    <span id="live" class="pill">●</span>
+  </div>
+</header>
+
+<main>
+  <!-- 主面板：风扇 + 转速 -->
+  <section class="card hero">
+    <div class="fan-wrap">
+      <svg viewBox="0 0 200 200" class="fan" id="fan">
+        <defs>
+          <radialGradient id="hub" cx="50%" cy="40%">
+            <stop offset="0%" stop-color="#7de3ff"/><stop offset="100%" stop-color="#1490b8"/>
+          </radialGradient>
+          <linearGradient id="blade" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#3fc3ec" stop-opacity=".95"/>
+            <stop offset="100%" stop-color="#1b6f96" stop-opacity=".8"/>
+          </linearGradient>
+        </defs>
+        <circle cx="100" cy="100" r="94" fill="none" stroke="#1c3242" stroke-width="10"/>
+        <circle cx="100" cy="100" r="94" fill="none" stroke="#2a5872" stroke-width="2"
+                stroke-dasharray="6 10" opacity=".6"/>
+        <g class="blades" id="blades">
+          <g transform="translate(100,100)">
+            <path d="M0,-14 C 6,-46 40,-72 66,-58 C 84,-47 74,-12 44,0 C 26,7 8,0 0,-14 Z"
+                  fill="url(#blade)"/>
+            <path d="M0,-14 C 6,-46 40,-72 66,-58 C 84,-47 74,-12 44,0 C 26,7 8,0 0,-14 Z"
+                  fill="url(#blade)" transform="rotate(90)"/>
+            <path d="M0,-14 C 6,-46 40,-72 66,-58 C 84,-47 74,-12 44,0 C 26,7 8,0 0,-14 Z"
+                  fill="url(#blade)" transform="rotate(180)"/>
+            <path d="M0,-14 C 6,-46 40,-72 66,-58 C 84,-47 74,-12 44,0 C 26,7 8,0 0,-14 Z"
+                  fill="url(#blade)" transform="rotate(270)"/>
+          </g>
+        </g>
+        <circle cx="100" cy="100" r="22" fill="url(#hub)" stroke="#0c2b3a" stroke-width="3"/>
+        <circle cx="93" cy="93" r="6" fill="#d8f6ff" opacity=".7"/>
+      </svg>
+      <div class="fan-glow" id="fan-glow"></div>
+    </div>
+    <div class="hero-info">
+      <div class="rpm-line"><span id="rpm">--</span><span class="rpm-unit">RPM</span></div>
+      <div class="bar"><div class="bar-fill" id="pwm-bar"></div><span class="bar-label" id="pwm-label">PWM --/255</span></div>
+      <div class="active-line" id="active-line">初始化…</div>
+      <div class="err-line hidden" id="err-line"></div>
+    </div>
+  </section>
+
+  <!-- 模式：自动 / 手动 -->
+  <section class="card">
+    <div class="card-title">运转模式</div>
+    <div class="seg" id="mode-seg">
+      <button class="seg-btn" data-mode="auto">自动 · 温度曲线</button>
+      <button class="seg-btn" data-mode="manual">手动 · 定速</button>
+    </div>
+    <div id="manual-box" class="hidden">
+      <div class="slider-line">
+        <input type="range" id="pwm-slider" min="20" max="255" value="128">
+        <span id="slider-val" class="slider-val">128</span>
+      </div>
+      <p class="hint">拖动滑条直接设定 PWM 占空比（20-255），转速立即生效。</p>
+    </div>
+  </section>
+
+  <!-- 温度三卡 -->
+  <section class="temps">
+    <div class="card temp-card">
+      <div class="card-title">CPU 温度<span class="mini" id="cpu-method-label">最高</span></div>
+      <div class="t-val" id="t-cpu">--</div>
+      <button class="link-btn" data-set="cpu">设置</button>
+    </div>
+    <div class="card temp-card">
+      <div class="card-title">GPU 温度<span class="mini">iGPU</span></div>
+      <div class="t-val" id="t-gpu">--</div>
+    </div>
+    <div class="card temp-card">
+      <div class="card-title">硬盘温度<span class="mini" id="disk-method-label">最高</span></div>
+      <div class="t-val" id="t-disk">--</div>
+      <button class="link-btn" data-set="disk">设置</button>
+    </div>
+  </section>
+
+  <!-- 温度曲线 -->
+  <section class="card">
+    <div class="card-title">温度曲线
+      <div class="tabs">
+        <button class="tab on" data-curve="cpu">CPU</button>
+        <button class="tab" data-curve="disk">硬盘</button>
+      </div>
+    </div>
+    <canvas id="curve-canvas" height="150"></canvas>
+    <div class="curve-table" id="curve-rows"></div>
+    <div class="row-btns">
+      <button class="btn" id="curve-add">＋ 加一档</button>
+      <button class="btn primary" id="curve-save">保存曲线</button>
+    </div>
+    <p class="hint">自动模式下取 CPU 曲线与硬盘曲线算出的较大 PWM。档位之间线性过渡。</p>
+  </section>
+
+  <!-- Bark 通知 -->
+  <section class="card">
+    <div class="card-title">Bark 通知<span class="switch"><input type="checkbox" id="bark-on"><label for="bark-on"></label></span></div>
+    <div class="form-row"><label>Bark 地址</label><input type="text" id="bark-url" placeholder="https://api.day.app/你的Key"></div>
+    <div class="form-row"><label>图标 URL</label><input type="text" id="bark-icon" placeholder="https://…/icon.png（可选）"></div>
+    <div class="form-row"><label>分组</label><input type="text" id="bark-group" placeholder="fan-pro"></div>
+    <div class="set-h">温度告警</div>
+    <div class="form-row"><label>CPU 阈值 °C</label><input type="number" id="alert-cpu" min="30" max="100"></div>
+    <div class="form-row"><label>硬盘阈值 °C</label><input type="number" id="alert-disk" min="25" max="70"></div>
+    <div class="form-row"><label>重复间隔 秒</label><input type="number" id="alert-interval" min="30" max="3600"></div>
+    <div class="row-btns">
+      <button class="btn" id="bark-test">发条测试</button>
+      <button class="btn primary" id="notify-save">保存通知设置</button>
+    </div>
+  </section>
+
+  <footer>fan-pro · 本机硬件直读 · PWM 写入需 root 运行</footer>
+</main>
+
+<!-- 温度计算方式弹窗 -->
+<div class="modal-mask hidden" id="modal-temp">
+  <div class="modal">
+    <div class="m-title" id="tm-title">设置</div>
+    <div class="set-h">温度计算方式</div>
+    <div class="seg small" id="tm-method">
+      <button class="seg-btn" data-v="max">取最高</button>
+      <button class="seg-btn" data-v="avg">取平均</button>
+    </div>
+    <div id="tm-disks" class="hidden">
+      <div class="set-h">参与计算的硬盘</div>
+      <div id="tm-disk-list" class="disk-list"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="tm-cancel">取消</button>
+      <button class="btn primary" id="tm-save">保存</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="hidden"></div>
+<script src="assets/app.js"></script>
+</body>
+</html>

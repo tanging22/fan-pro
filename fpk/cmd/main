@@ -1,0 +1,71 @@
+#!/bin/bash
+# fan-pro 启停脚本
+set -u
+APP_NAME="fan-pro"
+APP_HOME="${TRIM_APPDEST:-/usr/local/apps/@appcenter/${APP_NAME}}"
+PKG_VAR_DIR="${TRIM_PKGVAR:-/usr/local/apps/@appdata/${APP_NAME}}"
+PID_FILE="${PKG_VAR_DIR}/fan-pro.pid"
+SOCK_FILE="${APP_HOME}/app.sock"
+LOG_FILE="${PKG_VAR_DIR}/info.log"
+PYTHON_BIN="/usr/bin/python3"
+SERVER_DIR="${APP_HOME}/server"
+export FANPRO_DATA_DIR="${PKG_VAR_DIR}"
+
+start() {
+    if status >/dev/null 2>&1; then
+        echo "fan-pro already running"
+        return 0
+    fi
+    mkdir -p "${PKG_VAR_DIR}"
+    cd "${APP_HOME}"
+    PYTHONPATH="${SERVER_DIR}:${APP_HOME}/server/vendor" \
+    nohup "${PYTHON_BIN}" -m gunicorn \
+        --chdir "${SERVER_DIR}" \
+        --workers 1 --threads 4 --timeout 60 \
+        --bind "unix:${SOCK_FILE}" \
+        --pid "${PID_FILE}" \
+        --log-file "${LOG_FILE}" \
+        app:app >> "${LOG_FILE}" 2>&1 &
+    # 等服务就绪
+    for _ in $(seq 1 30); do
+        if curl -s --noproxy '*' --unix-socket "${SOCK_FILE}" \
+             http://localhost/api/status >/dev/null 2>&1; then
+            echo "fan-pro started"
+            return 0
+        fi
+        sleep 1
+    done
+    echo "fan-pro failed to start, see ${LOG_FILE}" >&2
+    [ -f "${TRIM_TEMP_LOGFILE:-/dev/null}" ] && tail -20 "${LOG_FILE}" > "${TRIM_TEMP_LOGFILE}"
+    return 1
+}
+
+stop() {
+    if [ -f "${PID_FILE}" ]; then
+        kill "$(cat "${PID_FILE}")" 2>/dev/null
+        for _ in $(seq 1 10); do
+            kill -0 "$(cat "${PID_FILE}")" 2>/dev/null || break
+            sleep 1
+        done
+        rm -f "${PID_FILE}"
+    fi
+    rm -f "${SOCK_FILE}"
+    echo "fan-pro stopped"
+}
+
+status() {
+    if [ -f "${PID_FILE}" ] && kill -0 "$(cat "${PID_FILE}")" 2>/dev/null; then
+        echo "running"
+        return 0
+    fi
+    echo "stopped"
+    return 3
+}
+
+case "$1" in
+    start) start ;;
+    stop) stop ;;
+    status) status ;;
+    restart) stop; sleep 1; start ;;
+    *) echo "Usage: $0 {start|stop|status|restart}"; exit 2 ;;
+esac

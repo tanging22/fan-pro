@@ -1,0 +1,14 @@
+{
+  ".url": {
+    "fan-pro.Application": {
+      "title": "风扇管家",
+      "icon": "images/icon_{0}.png",
+      "type": "iframe",
+      "protocol": "",
+      "gatewayPrefix": "/app/fan-pro",
+      "gatewaySocket": "app.sock",
+      "url": "/app/fan-pro/",
+      "allUsers": true
+    }
+  }
+}
