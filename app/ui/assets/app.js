@@ -38,6 +38,14 @@ let diskListCache = [];
 /* ---------------- 状态轮询 ---------------- */
 function maxRpm() { return (CFG && CFG.fan && CFG.fan.max_rpm) || 3000; }
 
+const rail = $("#rail-track");
+let railDrag = false;
+let railPid = null;
+function railVertical() {
+  const rect = rail.getBoundingClientRect();
+  return rect.height > rect.width;   // 窄屏立起来时高>宽
+}
+
 async function poll() {
   const r = await api("GET", "/api/status");
   if (!r.ok) return;
@@ -47,22 +55,30 @@ async function poll() {
   // 转速 & 风扇动画
   const rpm = s.rpm || 0;
   $("#rpm").textContent = rpm || "--";
-  $("#rail-num").textContent = rpm || "--";
+
   const dur = rpm > 0 ? Math.max(0.32, Math.min(3.5, 3.5 - (rpm / 1000) * 1.15)) : 0;
   const blades = $("#blades");
   blades.style.setProperty("--spin-dur", dur + "s");
   blades.style.animationPlayState = rpm > 0 ? "running" : "paused";
-  // 竖直转速条（窄屏显示）：填充 + 手柄（拖动中不被轮询覆盖）
-  const pct = Math.max(0, Math.min(100, (rpm / mr) * 100));
+  // 下发转速条（桌面横放 / 窄屏立右侧）：填充 + 手柄（拖动中不被轮询覆盖）
+  const tgtRpm = Math.round(((s.target_pwm ?? s.pwm ?? 0) / 255) * mr);
+  const pct = Math.max(0, Math.min(100, (tgtRpm / mr) * 100));
+  const pc = pct + "%";
   if (!railDrag) {
-    $("#rail-fill").style.height = pct + "%";
-    $("#rail-thumb").style.bottom = "calc(" + pct + "% - 11px)";
+    if (railVertical()) {
+      $("#rail-fill").style.width = "100%";
+      $("#rail-fill").style.height = pc;
+      $("#rail-thumb").style.bottom = "calc(" + pc + " - 11px)";
+    } else {
+      $("#rail-fill").style.width = pc;
+      $("#rail-fill").style.height = "100%";
+      $("#rail-thumb").style.left = "calc(" + pc + " - 11px)";
+    }
+    $("#rail-label").textContent = (s.mode === "manual" ? "手动 · " : "下发 · ") + tgtRpm + " RPM";
   }
   $("#rail-thumb").style.opacity = s.mode === "manual" ? 1 : 0.55;
-  // PWM 进度条
-  const pwm = s.pwm || 0;
-  $("#pwm-bar").style.width = Math.round((pwm / 255) * 100) + "%";
-  $("#pwm-label").textContent = "PWM " + pwm + " / 255";
+  $("#rail-track").classList.toggle("draggable", s.mode === "manual");
+
   // 生效说明
   const th = s.threshold;
   let line = "";
@@ -96,11 +112,6 @@ async function poll() {
   $$("#mode-seg .seg-btn").forEach(b => b.classList.toggle("on", b.dataset.mode === s.mode));
   $("#manual-box").classList.toggle("hidden", s.mode !== "manual");
   $("#auto-box").classList.toggle("hidden", s.mode === "manual");
-  if (s.mode === "manual" && document.activeElement !== $("#pwm-slider")) {
-    const targetRpm = Math.round(((s.target_pwm ?? s.pwm ?? 0) / 255) * mr);
-    $("#pwm-slider").value = targetRpm;
-    $("#slider-val").textContent = targetRpm;
-  }
 }
 
 /* ---------------- 配置 ---------------- */
@@ -119,14 +130,7 @@ async function loadConfig() {
   $("#alert-cpu").value = a.cpu_temp ?? 62;
   $("#alert-disk").value = a.disk_temp ?? 42;
   $("#alert-interval").value = a.interval ?? 60;
-  // 滑条初值（RPM 语义）
-  const mr = maxRpm();
-  const sl = $("#pwm-slider");
-  sl.min = 0; sl.max = mr; sl.step = Math.max(25, Math.round(mr / 100));
-  const initRpm = Math.round(((CFG.manual_pwm ?? 128) / 255) * mr);
-  sl.value = initRpm;
-  $("#slider-val").textContent = initRpm;
-  $("#max-rpm-hint").textContent = mr;
+  $("#max-rpm-hint").textContent = maxRpm();
   switchCurve(curveTab);
 }
 
@@ -162,41 +166,41 @@ function sendTargetRpm(rpm) {
   }, 350);
 }
 
-$("#pwm-slider").addEventListener("input", (e) => {
-  $("#slider-val").textContent = e.target.value;
-  sendTargetRpm(+e.target.value);
-});
+
 
 /* 竖直转速条拖动（窄屏显示；手动模式下可拖动控制转速） */
-const rail = $("#rail-track");
-let railDrag = false;
-let railPid = null;
-
-function railApply(clientY) {
+function railApply(clientX, clientY) {
   const rect = rail.getBoundingClientRect();
-  const ratio = 1 - (clientY - rect.top) / rect.height;   // 顶部 = 满速
-  const clamped = Math.max(0, Math.min(1, ratio));
   const mr = maxRpm();
+  let ratio;
+  if (railVertical()) ratio = 1 - (clientY - rect.top) / rect.height;      // 竖：顶=满速
+  else ratio = (clientX - rect.left) / rect.width;                          // 横：右=满速
+  const clamped = Math.max(0, Math.min(1, ratio));
   const rpm = Math.round(clamped * mr);
-  $("#rail-fill").style.height = (clamped * 100) + "%";
-  $("#rail-thumb").style.bottom = "calc(" + (clamped * 100) + "% - 11px)";
-  $("#rail-num").textContent = rpm;
-  if (MODE === "manual") {
-    $("#pwm-slider").value = rpm;
-    $("#slider-val").textContent = rpm;
-    sendTargetRpm(rpm);
+  const pc = (clamped * 100) + "%";
+  if (railVertical()) {
+    $("#rail-fill").style.width = "100%";
+    $("#rail-fill").style.height = pc;
+    $("#rail-thumb").style.bottom = "calc(" + pc + " - 11px)";
+  } else {
+    $("#rail-fill").style.width = pc;
+    $("#rail-fill").style.height = "100%";
+    $("#rail-thumb").style.left = "calc(" + pc + " - 11px)";
   }
+  $("#rail-label").textContent = "手动 · " + rpm + " RPM";
+  if (MODE === "manual") sendTargetRpm(rpm);
 }
 
 rail.addEventListener("pointerdown", (e) => {
+  if (MODE !== "manual") return;   // 自动模式只显示不可拖
   railDrag = true;
   railPid = e.pointerId;
-  rail.setPointerCapture(e.pointerId);
-  railApply(e.clientY);
+  try { rail.setPointerCapture(e.pointerId); } catch (err) { /* 合成事件无真实指针 */ }
+  railApply(e.clientX, e.clientY);
   e.preventDefault();
 });
 rail.addEventListener("pointermove", (e) => {
-  if (railDrag && e.pointerId === railPid) railApply(e.clientY);
+  if (railDrag && e.pointerId === railPid) railApply(e.clientX, e.clientY);
 });
 rail.addEventListener("pointerup", () => railDrag = false);
 rail.addEventListener("pointercancel", () => railDrag = false);
