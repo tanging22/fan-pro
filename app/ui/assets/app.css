@@ -277,7 +277,7 @@ footer { grid-area: foot; }
 
 footer { text-align: center; color: #9fb0bf; font-size: 11px; margin-top: 4px; }
 
-/* 手机适配 */
+/* 手机适配：按参考图排版 —— 风扇左 + 右侧竖排信息框(运行时间/温度/转速)，下方全宽横向滑动条 */
 @media (max-width: 640px) {
   main.grid {
     padding: 10px; gap: 10px;
@@ -285,44 +285,85 @@ footer { text-align: center; color: #9fb0bf; font-size: 11px; margin-top: 4px; }
     grid-template-areas:
       "hero" "mode" "temps" "curve" "bark" "foot";
   }
-  /* 温度三卡：一行三列紧凑小卡 */
-  .temps { grid-template-columns: repeat(3, 1fr); gap: 8px; }
-  .temp-card { padding: 10px 6px; }
-  .temp-card .card-title { font-size: 12px; margin-bottom: 6px; }
-  .temp-card .mini { display: none; }
-  .t-val { font-size: 22px; }
-  .t-val .deg { font-size: 12px; }
-  .link-btn { margin-top: 4px; padding: 4px 12px; font-size: 11px; }
 
-  /* hero：风扇左 + 竖转速条右，meta 全宽居中在下 */
-  .hero { grid-template-columns: 1fr auto; gap: 12px 14px; }
-  .fan-wrap { width: clamp(140px, 40vw, 168px); height: clamp(140px, 40vw, 168px); grid-row: 1; }
-  .rpm-rail { grid-column: 2; grid-row: 1; justify-self: end; align-self: center; }
-  .rail-track {
-    width: 24px; height: clamp(130px, 30vh, 180px);
-    border-radius: 7px; touch-action: none;
+  /* ---- hero：左风扇，右侧三个竖排信息框，底部全宽横滑条 ---- */
+  .hero {
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto;
+    gap: 10px 14px;
+    align-items: center;
   }
-  .rail-track.draggable { cursor: pointer; }
-  .rail-fill { width: 100%; }
+  .fan-wrap {
+    grid-column: 1; grid-row: 1;
+    width: clamp(120px, 34vw, 150px); height: clamp(120px, 34vw, 150px);
+  }
+  /* 右侧信息框竖排 */
+  .rail-meta {
+    grid-column: 2; grid-row: 1;
+    text-align: left;
+    display: flex; flex-direction: column; gap: 8px;
+    min-width: 0;
+  }
+  .stat-row { display: contents; }              /* 让三个 stat 独立成框 */
+  .stat {
+    background: var(--card2); border: 1.5px solid var(--fg);
+    border-radius: 10px; padding: 8px 12px; min-width: 0;
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  }
+  .s-label { font-size: 12px; color: var(--fg); flex-shrink: 0; }
+  .s-val {
+    font-size: 13px; font-weight: 600; text-align: right;
+    min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  /* RPM 大字并入右侧第二框（温度位）附近：放在 active-line 上方 */
+  .rpm-line { justify-content: flex-start; gap: 5px; flex-wrap: wrap; }
+  #rpm { font-size: 30px; }
+  .rpm-cap { font-size: 12px; color: var(--dim); }
+  .rpm-unit { font-size: 12px; }
+  .active-line { font-size: 11.5px; margin-top: 0; }
+
+  /* 底部全宽横向滑动条 */
+  .rpm-rail { grid-column: 1 / -1; grid-row: 2; }
+  .rail-track {
+    width: 100%; height: 30px; border-radius: 9px; touch-action: none;
+  }
+  .rail-fill { width: 0%; height: 100%; }
   .rail-thumb {
-    left: 50%; transform: translateX(-50%);
+    bottom: 50%; transform: translateY(50%);
+    left: calc(0% - 12px);
     width: 24px; height: 24px; border-radius: 6px;
   }
-  .rail-label { display: none; }
-  .rpm-rail { display: flex; flex-direction: column; align-items: center; gap: 6px; }
-  .rail-meta { grid-column: 1 / -1; grid-row: 2; }
-  .stat-row { gap: 6px; }
-  .stat { padding: 6px 8px; min-width: 0; flex: 1; align-items: center; }
-  .s-val { font-size: 12.5px; }
-  .s-label { font-size: 10px; }
-  #rpm { font-size: 40px; }
-  .rpm-line { justify-content: center; }
+  .rail-label {
+    display: flex; font-size: 12px;
+  }
 
-  /* 表单与曲线 */
+  /* ---- 温度三卡：一行三列，防溢出 ---- */
+  .temps { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .temp-card { padding: 10px 4px; min-width: 0; }
+  .temp-card .card-title { font-size: 12px; margin-bottom: 6px; justify-content: center; }
+  .temp-card .mini { display: none; }
+  .t-val {
+    font-size: clamp(18px, 6vw, 22px);
+    max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .t-val .deg { font-size: 11px; }
+  .link-btn { margin-top: 4px; padding: 4px 10px; font-size: 11px; }
+
+  /* ---- 全局防溢出 ---- */
+  .card { max-width: 100%; overflow-wrap: break-word; }
+  .card-title { flex-wrap: wrap; }
   .form-row { flex-wrap: wrap; }
   .form-row label { min-width: 80px; }
-  .curve-row input { width: 70px; }
+  .form-row input { width: 100%; flex: 1 1 160px; font-size: 16px; } /* 16px 防 iOS 聚焦放大 */
+  .curve-row input { width: min(84px, 26vw); font-size: 16px; }
+  .seg-btn { font-size: 13px; padding: 9px 0; }
+  .btn { font-size: 13px; padding: 9px 14px; }
   header { padding: 10px 14px; }
+  .brand { font-size: 14px; gap: 6px; }
+  .brand b { max-width: 40vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pill { font-size: 11px; padding: 2px 8px; max-width: 46vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hint { overflow-wrap: break-word; }
+  #rpm { font-variant-numeric: tabular-nums; }
   #curve-canvas { height: 150px; }
-  footer { font-size: 10px; }
+  footer { font-size: 10px; padding: 0 8px; overflow-wrap: break-word; }
 }
