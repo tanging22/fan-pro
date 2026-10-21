@@ -36,7 +36,10 @@ STAGE="${BUILD_DIR}/stage"
 rm -rf "${STAGE}"; mkdir -p "${STAGE}"
 cp "${BUILD_DIR}/app.tgz" "${STAGE}/"
 cp "${BUILD_DIR}/manifest" "${STAGE}/manifest"
-cp -r "${FPK_DIR}/cmd" "${FPK_DIR}/config" "${FPK_DIR}/wizard" "${STAGE}/"
+cp -r "${FPK_DIR}/cmd" "${FPK_DIR}/config" "${STAGE}/"
+# wizard 目录必须存在；git 不跟踪空目录，缺失时补空目录
+mkdir -p "${STAGE}/wizard"
+cp -r "${FPK_DIR}/wizard/." "${STAGE}/wizard/" 2>/dev/null || true
 cp "${FPK_DIR}/ICON.PNG" "${FPK_DIR}/ICON_256.PNG" "${STAGE}/"
 mkdir -p "${DIST_DIR}"
 tar czf "${DIST_DIR}/${OUT_NAME}" -C "${STAGE}" .
