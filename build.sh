@@ -40,5 +40,5 @@ cp -r "${FPK_DIR}/cmd" "${FPK_DIR}/config" "${FPK_DIR}/wizard" "${STAGE}/"
 cp "${FPK_DIR}/ICON.PNG" "${FPK_DIR}/ICON_256.PNG" "${STAGE}/"
 mkdir -p "${DIST_DIR}"
 tar czf "${DIST_DIR}/${OUT_NAME}" -C "${STAGE}" .
-tar tzf "${DIST_DIR}/${OUT_NAME}" | head -5
+tar tzf "${DIST_DIR}/${OUT_NAME}" >/dev/null
 echo "完成: dist/${OUT_NAME} ($(du -h "${DIST_DIR}/${OUT_NAME}" | awk '{print $1}'))"
