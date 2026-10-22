@@ -68,6 +68,7 @@ async function poll() {
   // 手动模式基准 = manual_pwm（当前设定，打开即在正确位置）；自动 = 实际下发 target_pwm
   const basePwm = s.mode === "manual" ? (s.manual_pwm ?? s.target_pwm ?? s.pwm ?? 0)
                                       : (s.target_pwm ?? s.pwm ?? 0);
+  pwmNow = basePwm;                                 // 灯带/叶片按 PWM 百分比驱动，不依赖转速上限
   const tgtRpm = Math.round((basePwm / 255) * mr);
   const pctN = Math.round(Math.max(0, Math.min(100, (tgtRpm / mr) * 100)));
   const pct = pctN + "%";                 // 显示用
@@ -481,7 +482,7 @@ $$(".fold-btn").forEach(b => b.onclick = () => {
 });
 
 /* ---------------- 风扇平滑转动：rAF 按百分比调速，变速时角度连续无跳变 ---------------- */
-let rpmNow = 0, fanAngle = 0, fanLast = 0;
+let rpmNow = 0, pwmNow = 0, fanAngle = 0, fanLast = 0;
 const fanBlades = $("#blades");
 /* 灯带：转速 0→满速 映射 浅蓝 → 蛋黄 → 浅红 */
 const LED_STOPS = [[168, 216, 244], [255, 220, 128], [255, 152, 144]];
@@ -499,10 +500,11 @@ function fanLoop(t) {
   if (!fanLast) { fanLast = t; return; }
   const dt = Math.min(0.1, (t - fanLast) / 1000);   // 切后台回来不跳帧
   fanLast = t;
-  const lc = ledColor(rpmNow / maxRpm());           // 灯带颜色跟转速（0 转也显示浅蓝）
+  const pct = Math.max(0, Math.min(1, pwmNow / 255));
+  const lc = ledColor(pct);                         // 灯带颜色跟 PWM 百分比（0 转也显示浅蓝）
   if (lc !== lastLed) { lastLed = lc; ledEls.forEach(e => e.setAttribute("stroke", lc)); }
   if (rpmNow <= 0) return;                          // 0 转停转
-  const rps = 0.25 + rpmNow / maxRpm();             // 转速百分比线性加快：100% ≈ 1.25 转/秒
+  const rps = 0.25 + pct;                           // PWM 百分比线性加快：100% ≈ 1.25 转/秒
   fanAngle = (fanAngle + rps * 360 * dt) % 360;
   fanBlades.setAttribute("transform", "rotate(" + fanAngle.toFixed(2) + " 100 100)");
 }
