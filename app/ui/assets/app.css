@@ -32,9 +32,9 @@ header {
 .brand { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 9px; }
 .brand b { color: var(--acc2); font-weight: 600; }
 .logo {
-  width: 24px; height: 24px; border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #7fdcf7, var(--acc) 55%, #0b6f9c);
-  box-shadow: 0 0 8px rgba(14,165,201,.45);
+  width: 24px; height: 24px; border-radius: 7px;
+  background: url("icon.png") center/cover no-repeat;   /* 白底黑风扇，与 App 图标统一 */
+  box-shadow: 0 1px 3px rgba(30, 60, 90, .18);
 }
 .head-right { display: flex; align-items: center; gap: 10px; }
 .pill {
@@ -117,7 +117,7 @@ footer { grid-area: foot; }
 /* 风扇旋转由 app.js 的 rAF 循环按百分比平滑驱动，不再用 CSS 动画 */
 .fan-glow {
   position: absolute; inset: -14px; border-radius: 50%;
-  background: radial-gradient(circle, rgba(14,165,201,.14), transparent 70%);
+  background: radial-gradient(circle, rgba(20, 24, 28, .07), transparent 70%);
   z-index: -1;
 }
 .rpm-rail { grid-column: 2; grid-row: 1; min-width: 0; }.rail-track {
