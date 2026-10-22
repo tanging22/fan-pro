@@ -60,14 +60,10 @@ async function poll() {
   const s = r.data;
   MODE = s.mode || "auto";
   const mr = maxRpm();
-  // 转速 & 风扇动画
+  // 转速（风扇动画由 rAF 循环按百分比平滑驱动，此处只更新数字）
   const rpm = s.rpm || 0;
   $("#rpm").textContent = rpm || "--";
-
-  const dur = rpm > 0 ? Math.max(0.32, Math.min(3.5, 3.5 - (rpm / 1000) * 1.15)) : 0;
-  const blades = $("#blades");
-  blades.style.setProperty("--spin-dur", dur + "s");
-  blades.style.animationPlayState = rpm > 0 ? "running" : "paused";
+  rpmNow = rpm;
   // 下发转速条（桌面横放 / 窄屏立右侧）：填充 + 手柄（拖动中不被轮询覆盖）
   // 手动模式基准 = manual_pwm（当前设定，打开即在正确位置）；自动 = 实际下发 target_pwm
   const basePwm = s.mode === "manual" ? (s.manual_pwm ?? s.target_pwm ?? s.pwm ?? 0)
@@ -95,7 +91,7 @@ async function poll() {
   const th = s.threshold;
   let line = "";
   if (s.mode === "manual") {
-    line = "手动定速 · PWM <b>" + s.target_pwm + "</b>";
+    line = "手动定速 · <b>" + Math.round((s.target_pwm || 0) / 255 * 100) + "%</b>（PWM " + s.target_pwm + "）";
   } else if (s.active === "disk" && th) {
     line = "自动 · <b>硬盘曲线</b>起作用（" + th.low.temp + "–" + th.high.temp + "°C 档 → PWM " + th.high.pwm + "）";
   } else if (s.active === "cpu" && th) {
@@ -150,7 +146,6 @@ async function loadConfig() {
   $("#alert-cpu").value = a.cpu_temp ?? 62;
   $("#alert-disk").value = a.disk_temp ?? 42;
   $("#alert-interval").value = a.interval ?? 60;
-  $("#max-rpm-hint").textContent = maxRpm();
   switchCurve(curveTab);
 }
 
@@ -475,6 +470,30 @@ async function collectNotifyForm(quiet) {
   };
   return saveConfig(patch, quiet);
 }
+
+/* ---------------- 卡片收纳（曲线 / 通知默认收起） ---------------- */
+$$(".fold-btn").forEach(b => b.onclick = () => {
+  const card = b.closest(".card");
+  card.classList.toggle("open");
+  b.textContent = card.classList.contains("open") ? "收起" : "设置";
+  if (card.classList.contains("curve-card") && card.classList.contains("open"))
+    requestAnimationFrame(drawCurve);   // 展开后画布才有宽度，重画一次
+});
+
+/* ---------------- 风扇平滑转动：rAF 按百分比调速，变速时角度连续无跳变 ---------------- */
+let rpmNow = 0, fanAngle = 0, fanLast = 0;
+const fanBlades = $("#blades");
+function fanLoop(t) {
+  requestAnimationFrame(fanLoop);
+  if (!fanLast) { fanLast = t; return; }
+  const dt = Math.min(0.1, (t - fanLast) / 1000);   // 切后台回来不跳帧
+  fanLast = t;
+  if (rpmNow <= 0) return;                          // 0 转停转
+  const rps = 0.25 + rpmNow / maxRpm();             // 转速百分比线性加快：100% ≈ 1.25 转/秒
+  fanAngle = (fanAngle + rps * 360 * dt) % 360;
+  fanBlades.setAttribute("transform", "rotate(" + fanAngle.toFixed(2) + " 100 100)");
+}
+requestAnimationFrame(fanLoop);
 
 window.addEventListener("resize", drawCurve);
 loadConfig().then(() => { poll(); setInterval(poll, 2000); setInterval(drawCurve, 4000); });

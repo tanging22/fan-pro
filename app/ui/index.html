@@ -71,7 +71,7 @@
       <button class="seg-btn" data-mode="manual">手动 · 定速</button>
     </div>
     <div id="manual-box" class="hidden">
-      <p class="hint">拖动上方风扇旁的<b>下发转速条</b>直接设定目标转速（RPM），按 <b id="max-rpm-hint">3000</b> RPM 满速换算立即生效。</p>
+      <p class="hint">拖动上方风扇旁的<b>下发转速条</b>按百分比设定转速，<b>100%</b> 即满速，拖动立即生效。</p>
     </div>
     <div id="auto-box">
       <p class="hint">自动模式下按温度曲线调速，曲线档位可在下方直接拖动调整。</p>
@@ -96,37 +96,43 @@
     </div>
   </section>
 
-  <!-- 温度曲线 -->
+  <!-- 温度曲线（默认收纳） -->
   <section class="card curve-card">
     <div class="card-title">温度曲线
       <span class="mini hidden" id="drag-hint">拖动节点调整</span>
+      <button class="fold-btn" type="button">设置</button>
+    </div>
+    <div class="card-body">
       <div class="tabs">
         <button class="tab on" data-curve="cpu">CPU</button>
         <button class="tab" data-curve="disk">硬盘</button>
       </div>
+      <canvas id="curve-canvas" height="170"></canvas>
+      <div class="curve-table" id="curve-rows"></div>
+      <div class="row-btns">
+        <button class="btn" id="curve-add">＋ 加一档</button>
+        <button class="btn primary" id="curve-save">保存曲线</button>
+      </div>
+      <p class="hint">自动模式下取 CPU 曲线与硬盘曲线算出的较大 PWM。档位之间线性过渡；节点可在图上直接拖动，点击线段可插入新档位。</p>
     </div>
-    <canvas id="curve-canvas" height="170"></canvas>
-    <div class="curve-table" id="curve-rows"></div>
-    <div class="row-btns">
-      <button class="btn" id="curve-add">＋ 加一档</button>
-      <button class="btn primary" id="curve-save">保存曲线</button>
-    </div>
-    <p class="hint">自动模式下取 CPU 曲线与硬盘曲线算出的较大 PWM。档位之间线性过渡；节点可在图上直接拖动，点击线段可插入新档位。</p>
   </section>
 
-  <!-- Bark 通知 -->
+  <!-- Bark 通知（默认收纳） -->
   <section class="card bark-card">
-    <div class="card-title">Bark 通知<span class="switch"><input type="checkbox" id="bark-on"><label for="bark-on"></label></span></div>
-    <div class="form-row"><label>Bark 地址</label><input type="text" id="bark-url" placeholder="https://api.day.app/你的Key"></div>
-    <div class="form-row"><label>图标 URL</label><input type="text" id="bark-icon" placeholder="https://…/icon.png（可选）"></div>
-    <div class="form-row"><label>分组</label><input type="text" id="bark-group" placeholder="fan-pro"></div>
-    <div class="set-h">温度告警</div>
-    <div class="form-row"><label>CPU 阈值 °C</label><input type="number" id="alert-cpu" min="30" max="100"></div>
-    <div class="form-row"><label>硬盘阈值 °C</label><input type="number" id="alert-disk" min="25" max="70"></div>
-    <div class="form-row"><label>重复间隔 秒</label><input type="number" id="alert-interval" min="30" max="3600"></div>
-    <div class="row-btns">
-      <button class="btn" id="bark-test">发条测试</button>
-      <button class="btn primary" id="notify-save">保存通知设置</button>
+    <div class="card-title">Bark 通知<button class="fold-btn" type="button">设置</button></div>
+    <div class="card-body">
+      <div class="form-row"><label>启用通知</label><span class="switch"><input type="checkbox" id="bark-on"><label for="bark-on"></label></span></div>
+      <div class="form-row"><label>Bark 地址</label><input type="text" id="bark-url" placeholder="https://api.day.app/你的Key"></div>
+      <div class="form-row"><label>图标 URL</label><input type="text" id="bark-icon" placeholder="https://…/icon.png（可选）"></div>
+      <div class="form-row"><label>分组</label><input type="text" id="bark-group" placeholder="fan-pro"></div>
+      <div class="set-h">温度告警</div>
+      <div class="form-row"><label>CPU 阈值 °C</label><input type="number" id="alert-cpu" min="30" max="100"></div>
+      <div class="form-row"><label>硬盘阈值 °C</label><input type="number" id="alert-disk" min="25" max="70"></div>
+      <div class="form-row"><label>重复间隔 秒</label><input type="number" id="alert-interval" min="30" max="3600"></div>
+      <div class="row-btns">
+        <button class="btn" id="bark-test">发条测试</button>
+        <button class="btn primary" id="notify-save">保存通知设置</button>
+      </div>
     </div>
   </section>
 
