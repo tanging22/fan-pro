@@ -483,11 +483,24 @@ $$(".fold-btn").forEach(b => b.onclick = () => {
 /* ---------------- 风扇平滑转动：rAF 按百分比调速，变速时角度连续无跳变 ---------------- */
 let rpmNow = 0, fanAngle = 0, fanLast = 0;
 const fanBlades = $("#blades");
+/* 灯带：转速 0→满速 映射 浅蓝 → 蛋黄 → 浅红 */
+const LED_STOPS = [[168, 216, 244], [255, 220, 128], [255, 152, 144]];
+const ledEls = $$(".led");
+let lastLed = "";
+function ledColor(t) {
+  t = Math.max(0, Math.min(1, t));
+  const a = t < .5 ? LED_STOPS[0] : LED_STOPS[1];
+  const b = t < .5 ? LED_STOPS[1] : LED_STOPS[2];
+  const k = t < .5 ? t * 2 : (t - .5) * 2;
+  return "rgb(" + a.map((v, i) => Math.round(v + (b[i] - v) * k)).join(",") + ")";
+}
 function fanLoop(t) {
   requestAnimationFrame(fanLoop);
   if (!fanLast) { fanLast = t; return; }
   const dt = Math.min(0.1, (t - fanLast) / 1000);   // 切后台回来不跳帧
   fanLast = t;
+  const lc = ledColor(rpmNow / maxRpm());           // 灯带颜色跟转速（0 转也显示浅蓝）
+  if (lc !== lastLed) { lastLed = lc; ledEls.forEach(e => e.setAttribute("stroke", lc)); }
   if (rpmNow <= 0) return;                          // 0 转停转
   const rps = 0.25 + rpmNow / maxRpm();             // 转速百分比线性加快：100% ≈ 1.25 转/秒
   fanAngle = (fanAngle + rps * 360 * dt) % 360;
