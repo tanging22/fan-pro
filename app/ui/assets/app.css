@@ -117,7 +117,7 @@ footer { grid-area: foot; }
 /* 风扇旋转由 app.js 的 rAF 循环按百分比平滑驱动，不再用 CSS 动画 */
 .fan-glow {
   position: absolute; inset: -14px; border-radius: 50%;
-  background: radial-gradient(circle, rgba(20, 24, 28, .07), transparent 70%);
+  background: radial-gradient(circle, rgba(85, 168, 216, .16), transparent 70%);
   z-index: -1;
 }
 .rpm-rail { grid-column: 2; grid-row: 1; min-width: 0; }.rail-track {
