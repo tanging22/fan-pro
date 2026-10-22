@@ -123,7 +123,7 @@ async function poll() {
   if (stt.max_cpu != null) tmax.push("CPU " + stt.max_cpu + "°C");
   if (stt.max_disk != null) tmax.push("盘 " + stt.max_disk + "°C");
   $("#st-tmax").textContent = tmax.length ? tmax.join(" · ") : "--";
-  $("#st-rmax").textContent = stt.max_rpm ? stt.max_rpm.toLocaleString() + " RPM" : "--";
+  $("#st-rmax").textContent = stt.max_rpm ? stt.max_rpm + " RPM" : "--";
   $("#disk-method-label").textContent = t.disk_method === "avg" ? "平均" : "最高";
   // 模式按钮
   $$("#mode-seg .seg-btn").forEach(b => b.classList.toggle("on", b.dataset.mode === s.mode));

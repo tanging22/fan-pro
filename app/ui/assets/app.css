@@ -247,6 +247,7 @@ footer { grid-area: foot; }
 .switch { position: relative; }
 .switch input { display: none; }
 .switch label {
+  min-width: 0;
   display: block; width: 40px; height: 22px; border-radius: 11px;
   background: var(--card2); border: 1px solid var(--line); cursor: pointer;
   position: relative; transition: .2s;
